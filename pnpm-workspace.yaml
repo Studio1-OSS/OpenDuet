@@ -1,0 +1,6 @@
+allowBuilds:
+  agent-browser: true
+  edgedriver: false
+  geckodriver: false
+  sharp: false
+  unrs-resolver: false
