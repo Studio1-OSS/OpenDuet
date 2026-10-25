@@ -19,13 +19,14 @@ import {
   Sun,
   X,
 } from "lucide-react";
-import { memo, useState } from "react";
+import { memo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api } from "@/lib/client/api";
 import { formatCost, formatTokens, timeLabel } from "@/lib/client/format";
 import type { ActionDetail, Bot, ChatMessage, Part, Source } from "@/lib/shared/types";
 import { useApp } from "./OpenDuetApp";
+import { ReadAloud } from "./ReadAloud";
 import { BotAvatar, Button, inputClass } from "./ui";
 
 const Markdown = memo(function Markdown({ text }: { text: string }) {
@@ -347,6 +348,7 @@ function RoutineHeader({ message }: { message: ChatMessage }) {
 }
 
 export function MessageItem({ message, bot, showAuthor }: { message: ChatMessage; bot?: Bot; showAuthor: boolean }) {
+  const contentRef = useRef<HTMLDivElement>(null);
   if (message.role === "user") {
     const text = message.parts.map((p) => (p.kind === "text" ? p.text : "")).join("");
     return (
@@ -403,6 +405,7 @@ export function MessageItem({ message, bot, showAuthor }: { message: ChatMessage
         </div>
       )}
       <div
+        ref={contentRef}
         className={clsx(
           "flex w-full max-w-[min(680px,92%)] min-w-0 flex-col items-start gap-2",
           routine && "overflow-hidden rounded-[22px] bg-raised pb-2 ring-1 [&>*:not(:first-child)]:mx-2",
@@ -442,6 +445,9 @@ export function MessageItem({ message, bot, showAuthor }: { message: ChatMessage
         {message.status === "stopped" && !message.error && <p className="px-2 text-[13px] text-faint">Stopped.</p>}
         {uniqueSources.length > 0 && !streaming && <SourceList sources={uniqueSources} />}
       </div>
+      {message.role === "bot" && message.status === "done" && message.parts.some((p) => p.kind === "text" && p.text.trim()) && (
+        <ReadAloud key={`${message.conversationId}:${message.id}`} contentRef={contentRef} />
+      )}
       <div className="mt-1 flex h-4 flex-wrap gap-x-2 pl-2 text-[11.5px] text-faint opacity-0 transition-opacity group-hover:opacity-100">
         <span>{timeLabel(message.createdAt)}</span>
         {message.model && !streaming && <span>{message.model === "mock" ? "mock model" : message.model.split("/").pop()}</span>}
