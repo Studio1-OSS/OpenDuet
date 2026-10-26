@@ -2,6 +2,7 @@
 
 import { Square, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { stopSpeechInput } from "@/lib/client/use-speech-input";
 import { Button } from "./ui";
 
 // Shared across replies so starting one always releases the previous owner.
@@ -49,6 +50,7 @@ export function ReadAloud({ contentRef }: { contentRef: RefObject<HTMLDivElement
       setNotice("No text to read aloud. Code blocks are skipped.");
       return;
     }
+    stopSpeechInput();
     stopCurrent?.();
     const synth = window.speechSynthesis;
     const utterance = new SpeechSynthesisUtterance(text);

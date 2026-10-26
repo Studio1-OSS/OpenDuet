@@ -130,3 +130,25 @@ test('service restrictions are distinguished from microphone permission', () => 
   assert.match(h.render().notice, /even if microphone access is allowed/);
   assert.equal(h.instances[0].onend, null);
 });
+
+test('rapid toggles without a render use the current session and preserve edited text', () => {
+  const h = harness(), controls = h.render();
+  controls.toggle();
+  const old = h.instances[0], late = old.onresult;
+  controls.toggle(); controls.toggle();
+  assert.equal(old.aborts, 1);
+  h.type('User edit');
+  late({ results: [result('stale')] });
+  h.instances[1].onresult({ results: [result('new phrase')] });
+  assert.equal(h.draft(), 'User edit new phrase');
+});
+
+test('recovery after an error rejects stale end events and accepts new final results', () => {
+  const h = harness(); h.render().toggle();
+  const old = h.instances[0], lateEnd = old.onend;
+  old.onerror({ error: 'network' });
+  h.render().toggle(); lateEnd();
+  h.instances[1].onresult({ results: [result('recovered')] });
+  assert.equal(h.render().listening, true);
+  assert.equal(h.draft(), 'Typed draft recovered');
+});

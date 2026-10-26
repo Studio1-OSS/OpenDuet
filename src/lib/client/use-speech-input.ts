@@ -18,6 +18,12 @@ type SpeechWindow = Window & {
   webkitSpeechRecognition?: new () => Recognition;
 };
 
+let activeInput: { recognition: Recognition; stop: () => void } | null = null;
+
+export function stopSpeechInput() {
+  activeInput?.stop();
+}
+
 const errors: Record<string, string> = {
   "not-allowed": "Speech recognition permission was denied. Check site microphone permission and system speech recognition restrictions, then try again.",
   "service-not-allowed": "The speech recognition service is unavailable or restricted, even if microphone access is allowed. In Safari, check that Siri is enabled and not restricted in macOS settings. You can still type your message.",
@@ -37,6 +43,7 @@ export function useSpeechInput(setText: Dispatch<SetStateAction<string>>, before
   const stop = () => {
     const current = session.current;
     if (!current) return;
+    if (activeInput?.recognition === current) activeInput = null;
     session.current = null; // Invalidate before abort, which may dispatch events synchronously.
     current.onresult = current.onerror = current.onend = null;
     try { current.abort(); } catch { /* Already stopped by the browser. */ }
@@ -47,6 +54,7 @@ export function useSpeechInput(setText: Dispatch<SetStateAction<string>>, before
     const current = session.current;
     session.current = null;
     if (!current) return;
+    if (activeInput?.recognition === current) activeInput = null;
     current.onresult = current.onerror = current.onend = null;
     try { current.abort(); } catch { /* Already stopped. */ }
   }, []);
@@ -65,6 +73,7 @@ export function useSpeechInput(setText: Dispatch<SetStateAction<string>>, before
     }
     let recognition: Recognition | undefined;
     try {
+      stopSpeechInput();
       beforeStart();
       recognition = new Constructor();
       const current = recognition;
@@ -100,6 +109,7 @@ export function useSpeechInput(setText: Dispatch<SetStateAction<string>>, before
         setNotice(heardSpeech ? "Listening ended. Review your text before sending." : errors["no-speech"]);
       };
       session.current = current;
+      activeInput = { recognition: current, stop };
       setNotice("");
       setListening(true); // Includes the browser's permission prompt/startup period.
       current.start();

@@ -211,7 +211,7 @@ Add your keys to `.env`, then restart `pnpm dev`. Every key is optional:
 
 ### Voice input and read aloud
 
-Click the microphone beside the message input and allow microphone access to dictate. Choose **Speech language** before starting (default: browser language). Finalized phrases append to your editable draft; review them and choose **Send** yourself—speech never sends automatically. **Stop listening** discards unfinished phrases. Switching conversations stops listening, and starting it stops active read-aloud playback.
+Click the microphone beside the message input and allow microphone access to dictate. Choose **Speech language** before starting (default: browser language). Finalized phrases append to your editable draft; review them and choose **Send** yourself—speech never sends automatically. **Stop listening** discards unfinished phrases. Switching conversations stops listening, and starting either voice mode stops the other.
 
 Choose **Read aloud** below a completed assistant reply; **Stop reading**, starting another reply, or leaving the conversation ends playback. Code blocks, tool output, and reasoning are skipped. Available voices vary by browser and operating system.
 
