@@ -7,6 +7,10 @@ import { Button } from "./ui";
 // Shared across replies so starting one always releases the previous owner.
 let stopCurrent: (() => void) | undefined;
 
+export function stopReadAloud() {
+  stopCurrent?.();
+}
+
 /** Use the same Markdown rendering as chat, never tool cards or reasoning. */
 function spokenText(root: HTMLElement | null): string {
   if (!root) return "";

@@ -1,12 +1,14 @@
 "use client";
 
 import clsx from "clsx";
-import { ArrowLeft, ArrowUp, AtSign, CalendarDays, ChevronDown, FileText, Globe, Mail, Search, Users, Eraser, ListChecks, MonitorPlay, MoreHorizontal, NotebookPen, PanelLeft, PanelRight, Plus, Square } from "lucide-react";
+import { ArrowLeft, ArrowUp, AtSign, CalendarDays, ChevronDown, FileText, Globe, Mail, Search, Users, Eraser, ListChecks, MonitorPlay, MoreHorizontal, Mic, NotebookPen, PanelLeft, PanelRight, Plus, Square } from "lucide-react";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "@/lib/client/api";
 import type { Bot, ChatMessage, Room } from "@/lib/shared/types";
 import { useApp, type InspectorTab } from "./OpenDuetApp";
 import { useNeedsInputCount } from "./TasksPane";
+import { useSpeechInput } from "@/lib/client/use-speech-input";
+import { stopReadAloud } from "./ReadAloud";
 import { MessageItem } from "./Message";
 import { Menu } from "./Sidebar";
 import { BotAvatar, IconButton, RoomAvatar } from "./ui";
@@ -202,6 +204,7 @@ function Composer({
   const { toast } = useApp();
   const [text, setText] = useState(() => prefill ?? readDraft(conversationId));
   const [sending, setSending] = useState(false);
+  const speech = useSpeechInput(setText, stopReadAloud);
   const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
   const [highlight, setHighlight] = useState(0);
   const [plusMenu, setPlusMenu] = useState(false);
@@ -267,6 +270,7 @@ function Composer({
   const send = async () => {
     const value = text.trim();
     if (!value || sending) return;
+    speech.stop();
     setSending(true);
     try {
       await api.send(conversationId, value);
@@ -356,8 +360,17 @@ function Composer({
                 void send();
               }
             }}
-            className="max-h-[220px] min-h-[36px] flex-1 resize-none bg-transparent px-1 py-2 text-[15px] leading-snug placeholder:text-faint focus:outline-none"
+            className="max-h-[220px] min-h-[36px] min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-[15px] leading-snug placeholder:text-faint focus:outline-none"
           />
+          <IconButton
+            label={speech.listening ? "Stop listening" : "Start speech input"}
+            aria-pressed={speech.listening}
+            onClick={() => { setMention(null); speech.toggle(); }}
+            disabled={sending}
+            className={speech.listening ? "bg-accent-soft text-link" : undefined}
+          >
+            {speech.listening ? <Square size={14} aria-hidden /> : <Mic size={18} aria-hidden />}
+          </IconButton>
           {running && (
             <IconButton label="Stop" onClick={stop} className="bg-raised-2 text-ink">
               <Square size={13} fill="currentColor" />
@@ -371,6 +384,28 @@ function Composer({
           >
             <ArrowUp size={18} strokeWidth={2.4} />
           </IconButton>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-mute">
+          <label className="flex items-center gap-2">
+            Speech language
+            <select
+              aria-label="Speech recognition language"
+              value={speech.language}
+              onChange={(e) => speech.setLanguage(e.target.value)}
+              disabled={speech.listening}
+              className="max-w-44 rounded-lg bg-raised px-2 py-1 focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50"
+            >
+              <option value="">Browser language</option>
+              <option value="en-US">English (US)</option>
+              <option value="en-GB">English (UK)</option>
+              <option value="tr-TR">Türkçe</option>
+              <option value="ar-SA">العربية</option>
+              <option value="es-ES">Español</option>
+              <option value="fr-FR">Français</option>
+              <option value="de-DE">Deutsch</option>
+            </select>
+          </label>
+          <span role="status">{speech.listening ? "Listening… Stop when finished; review before sending." : speech.notice}</span>
         </div>
         <p className="mt-2 text-right text-[12px] text-faint">
           {running ? "Messages you send now wait until this reply finishes." : "Bots are AI and can make mistakes."}

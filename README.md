@@ -209,11 +209,13 @@ Add your keys to `.env`, then restart `pnpm dev`. Every key is optional:
 - **Brief me now** in a bot's Details posts a scripted brief.
 - `search for Nebius Token Factory` runs a real Tavily search once `TAVILY_API_KEY` is set.
 
-### Read aloud
+### Voice input and read aloud
 
-Choose **Read aloud** below a completed assistant reply to hear its text. **Stop reading** ends playback; starting another reply or leaving the conversation also stops it. Code blocks, tool output, and reasoning are skipped.
+Click the microphone beside the message input and allow microphone access to dictate. Choose **Speech language** before starting (default: browser language). Finalized phrases append to your editable draft; review them and choose **Send** yourself—speech never sends automatically. **Stop listening** discards unfinished phrases. Switching conversations stops listening, and starting it stops active read-aloud playback.
 
-Playback uses the browser Web Speech API and its default voice, with no API key or added service. Support, available voices, language handling, and long-reply reliability vary by browser and operating system. Some system voices may use an online speech service. Unsupported browsers and speech failures show a message beside the button.
+Choose **Read aloud** below a completed assistant reply; **Stop reading**, starting another reply, or leaving the conversation ends playback. Code blocks, tool output, and reasoning are skipped. Available voices vary by browser and operating system.
+
+Voice input availability depends on your browser and system settings. Microphone permission and speech recognition service access are separate; if recognition is unavailable, you can still type. Browser speech recognition may send audio to a remote service and is not guaranteed to work offline; some playback voices also use online services. OpenDuet stores no microphone audio. Transcribed text follows the usual draft and chat data flow.
 
 ## Data and privacy
 
@@ -257,7 +259,6 @@ It assumes one local owner and has no sign-in. To keep it that way, `pnpm dev` a
 - Let Jev pick the model for each message (fast for simple asks, strong for hard ones). It's shown as "coming soon" in the model sheet.
 - Let you talk to bots from Slack or Discord with Mastra Channels.
 - Add sign-in and multiple users before deploying it anywhere shared.
-- Add voice input: speak to a bot.
 
 ## Project layout
 
