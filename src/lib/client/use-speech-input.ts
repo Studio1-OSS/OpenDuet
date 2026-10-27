@@ -119,5 +119,5 @@ export function useSpeechInput(setText: Dispatch<SetStateAction<string>>, before
     }
   };
 
-  return { listening, notice, language, setLanguage, toggle, stop };
+  return { listening, notice, language, setLanguage, toggle, stop, clearNotice: () => setNotice("") };
 }

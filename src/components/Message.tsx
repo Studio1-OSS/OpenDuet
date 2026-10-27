@@ -29,9 +29,9 @@ import { useApp } from "./OpenDuetApp";
 import { ReadAloud } from "./ReadAloud";
 import { BotAvatar, Button, inputClass } from "./ui";
 
-const Markdown = memo(function Markdown({ text }: { text: string }) {
+const Markdown = memo(function Markdown({ text, speakable = false }: { text: string; speakable?: boolean }) {
   return (
-    <div className="prose-chat text-[15px]">
+    <div data-read-aloud-text={speakable ? "" : undefined} className="prose-chat text-[15px]">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -418,7 +418,7 @@ export function MessageItem({ message, bot, showAuthor }: { message: ChatMessage
             <div key={b} className={clsx("max-w-full min-w-0 space-y-2.5 rounded-[22px] bg-raised px-4 py-3", routine ? "w-full !mx-0 py-1.5" : "w-fit")}>
               {block.parts.map(({ part, index }) =>
                 part.kind === "text" ? (
-                  <Markdown key={index} text={part.text} />
+                  <Markdown key={index} text={part.text} speakable={message.role === "bot" && message.status === "done"} />
                 ) : part.kind === "reasoning" ? (
                   <Reasoning key={index} text={part.text} live={streaming && index === lastIndex} />
                 ) : null,

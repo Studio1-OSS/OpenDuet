@@ -213,7 +213,7 @@ Add your keys to `.env`, then restart `pnpm dev`. Every key is optional:
 
 Click the microphone beside the message input and allow microphone access to dictate. Choose **Speech language** before starting (default: browser language). Finalized phrases append to your editable draft; review them and choose **Send** yourself—speech never sends automatically. **Stop listening** discards unfinished phrases. Switching conversations stops listening, and starting either voice mode stops the other.
 
-Choose **Read aloud** below a completed assistant reply; **Stop reading**, starting another reply, or leaving the conversation ends playback. Code blocks, tool output, and reasoning are skipped. Available voices vary by browser and operating system.
+Choose **Read aloud** below a completed assistant reply; **Stop reading**, starting another reply, or leaving the conversation ends playback. Read-aloud currently targets English text (`en-US`), preferring an available English voice. Code blocks, tool output, and reasoning are skipped. Long replies play in bounded chunks; stalled playback stops with an error. Browser and system voices vary.
 
 Voice input availability depends on your browser and system settings. Microphone permission and speech recognition service access are separate; if recognition is unavailable, you can still type. Browser speech recognition may send audio to a remote service and is not guaranteed to work offline; some playback voices also use online services. OpenDuet stores no microphone audio. Transcribed text follows the usual draft and chat data flow.
 
@@ -273,6 +273,8 @@ It assumes one local owner and has no sign-in. To keep it that way, `pnpm dev` a
 - `src/components/`: the chat interface. `src/lib/client/store.ts` folds server events into state.
 
 ## Contributing
+
+Run `pnpm test` for voice regression checks, including DOM extraction tests. These tests mock speech APIs; microphone access and audible playback still need browser testing.
 
 Issues and pull requests are welcome. Describe the workflow a change enables, run `pnpm exec tsc --noEmit` and `pnpm lint`, and say whether you tested it against live services or the mock model.
 

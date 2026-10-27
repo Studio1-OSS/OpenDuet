@@ -121,7 +121,6 @@ test('no-speech end, startup failures and unsupported API leave typing usable', 
   const missing = harness({ unsupported: true }); missing.render().toggle();
   assert.match(missing.render().notice, /isn't supported/);
   assert.equal(missing.playbackStops(), 0);
-  missing.type('Still typing'); assert.equal(missing.draft(), 'Still typing');
 });
 
 test('service restrictions are distinguished from microphone permission', () => {

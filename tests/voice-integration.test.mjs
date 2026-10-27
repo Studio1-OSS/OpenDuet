@@ -1,77 +1,8 @@
-// These tests load production modules, mocking only React/UI and browser/service boundaries.
+// Load production components; mock only React/UI and browser/service boundaries.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
-import ts from 'typescript';
+import { harness } from './helpers/voice-harness.mjs';
 
-function harness() {
-  let owner;
-  const react = {
-    useState(initial) {
-      const instance = owner, index = instance.index++;
-      if (!(index in instance.slots)) instance.slots[index] = typeof initial === 'function' ? initial() : initial;
-      return [instance.slots[index], value => { instance.slots[index] = typeof value === 'function' ? value(instance.slots[index]) : value; }];
-    },
-    useRef(initial) { return owner.slots[owner.index++] ??= { current: initial }; },
-    useEffect(effect) { const index = owner.index++; if (!(index in owner.slots)) owner.slots[index] = effect(); },
-    useLayoutEffect() {},
-  };
-  const recognizers = [], utterances = [], sent = [];
-  let resolveSend;
-  class Recognition {
-    constructor() { recognizers.push(this); this.aborts = 0; }
-    start() {}
-    abort() { this.aborts++; }
-  }
-  const synth = { cancel() {}, speak(utterance) { utterances.push(utterance); } };
-  const jsx = (type, props) => ({ type, props });
-  const ui = { IconButton: 'button', Button: 'button' };
-  const api = { send(id, value) { sent.push({ id, value }); return new Promise(resolve => { resolveSend = resolve; }); } };
-  const context = vm.createContext({
-    window: { SpeechRecognition: Recognition, speechSynthesis: synth, SpeechSynthesisUtterance: class {} },
-    navigator: { language: 'en-US' },
-    SpeechSynthesisUtterance: class { constructor(text) { this.text = text; } },
-    sessionStorage: { getItem() { return null; } },
-  });
-  const modules = {};
-  function load(path, extra = '') {
-    const exports = {};
-    const require = name => {
-      if (name === 'react') return react;
-      if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
-      if (name === 'lucide-react') return {};
-      if (name === 'clsx') return { default: (...args) => args.filter(Boolean).join(' ') };
-      if (name === './ui') return ui;
-      if (name === '@/lib/client/use-speech-input') return modules.input;
-      if (name === './ReadAloud') return modules.output;
-      if (name === '@/lib/client/api') return { api };
-      if (name === './OpenDuetApp') return { useApp: () => ({ toast() {} }) };
-      return {};
-    };
-    const source = ts.transpileModule(readFileSync(path, 'utf8'), {
-      compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
-    }).outputText;
-    vm.runInContext(`(function(require, exports) {${source}\n${extra}\n})`, context)(require, exports);
-    return exports;
-  }
-  modules.input = load('src/lib/client/use-speech-input.ts');
-  modules.output = load('src/components/ReadAloud.tsx');
-  // Composer is file-local; expose the actual compiled function only inside this test VM.
-  const { Composer } = load('src/components/ChatView.tsx', 'exports.Composer = Composer;');
-  const instance = () => ({ slots: [], index: 0 });
-  const render = (instance, fn) => { owner = instance; owner.index = 0; return fn(); };
-  const cleanup = instance => instance.slots.forEach(slot => { if (typeof slot === 'function') slot(); });
-  const find = (node, predicate) => {
-    if (!node || typeof node !== 'object') return undefined;
-    if (predicate(node)) return node;
-    return [node.props?.children].flat(Infinity).map(child => find(child, predicate)).find(Boolean);
-  };
-  // DOM boundary fixture: lifecycle tests do not claim to test Markdown parsing/layout.
-  const content = { current: { querySelectorAll: () => [{ cloneNode: () => ({ querySelectorAll: () => [], textContent: 'Assistant reply' }) }] } };
-  return { instance, render, cleanup, find, recognizers, utterances, sent, finishSend: () => resolveSend(),
-    input: modules.input, output: modules.output, Composer, content };
-}
 const result = text => ({ results: [{ isFinal: true, 0: { transcript: text } }] });
 
 // This exercises the production Composer.send, not a hand-written approximation of it.
@@ -111,20 +42,58 @@ test('voice modes stop each other; stale read-aloud callbacks cannot reset playb
   clickRead(first);
   const oldEnd = h.utterances[0].onend, oldError = h.utterances[0].onerror;
   renderInput().toggle();
-  assert.equal(read(first).props.children[0].props['aria-pressed'], false);
+  assert.equal(read(first).props.children[0].props['aria-label'], 'Read aloud');
   const lateResult = h.recognizers[0].onresult;
   clickRead(second);
   assert.equal(h.recognizers[0].aborts, 1);
   assert.equal(renderInput().listening, false);
   lateResult(result('bot speech')); oldEnd(); oldError();
   assert.equal(draft, '');
-  assert.equal(read(second).props.children[0].props['aria-pressed'], true);
+  assert.equal(read(second).props.children[0].props['aria-label'], 'Stop reading aloud');
   clickRead(first);
   const latest = h.utterances.at(-1);
   oldError();
-  assert.equal(read(first).props.children[1].props.children, 'Reading aloud…');
+  assert.equal(read(first).props.children[1].props.children, '');
+  const before = h.cancellations();
   h.cleanup(second); // Inactive reply cleanup must not affect the current owner.
-  assert.equal(latest.onend instanceof Function || typeof latest.onend === 'function', true);
+  assert.equal(read(first).props.children[0].props['aria-label'], 'Stop reading aloud');
+  assert.equal(h.cancellations(), before);
   h.cleanup(first);
   assert.equal(latest.onend, null);
+});
+
+test('sending clears a stale recognition notice, including when recognition is inactive', async () => {
+  const h = harness(), composer = h.instance();
+  const render = () => h.render(composer, () => h.Composer({ conversationId: 'dm:one', name: 'Bot', members: [], running: false }));
+  h.find(render(), n => n.props?.label === 'Start speech input').props.onClick();
+  h.recognizers[0].onerror({ error: 'network' });
+  assert.match(h.find(render(), n => n.props?.role === 'status').props.children, /connection/);
+  h.find(render(), n => n.type === 'textarea').props.onChange({ target: { value: 'Manual message', selectionStart: 14 } });
+  const pending = h.find(render(), n => n.props?.label === 'Send').props.onClick();
+  h.finishSend(); await pending;
+  assert.equal(h.find(render(), n => n.props?.role === 'status').props.children, '');
+});
+
+test('the actual ChatView assigns different Composer keys on conversation changes', () => {
+  const h = harness(), view = h.instance();
+  const render = () => h.render(view, () => h.ChatView());
+  const first = h.find(render(), n => n.type === h.Composer);
+  h.appState.active = 'dm:two';
+  const next = h.find(render(), n => n.type === h.Composer);
+  assert.equal(first.key, 'dm:one:0');
+  assert.equal(next.key, 'dm:two:0');
+});
+
+test('unsupported recognition leaves the actual textarea and manual Send usable', async () => {
+  const h = harness(), composer = h.instance();
+  delete h.context.window.SpeechRecognition;
+  const render = () => h.render(composer, () => h.Composer({ conversationId: 'dm:one', name: 'Bot', members: [], running: false }));
+  const mic = h.find(render(), n => n.props?.label === 'Start speech input');
+  assert.equal(mic.props['aria-pressed'], undefined);
+  mic.props.onClick();
+  assert.match(h.find(render(), n => n.props?.role === 'status').props.children, /isn't supported/);
+  h.find(render(), n => n.type === 'textarea').props.onChange({ target: { value: 'Typed normally', selectionStart: 14 } });
+  const pending = h.find(render(), n => n.props?.label === 'Send').props.onClick();
+  h.finishSend(); await pending;
+  assert.equal(h.sent[0].value, 'Typed normally');
 });

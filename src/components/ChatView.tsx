@@ -188,7 +188,7 @@ function readDraft(conversationId: string): string {
 }
 
 /** Keyed by conversation (and by a picked suggestion), so it starts fresh for each. */
-function Composer({
+export function Composer({
   conversationId,
   name,
   members,
@@ -271,6 +271,7 @@ function Composer({
     const value = text.trim();
     if (!value || sending) return;
     speech.stop();
+    speech.clearNotice();
     setSending(true);
     try {
       await api.send(conversationId, value);
@@ -364,7 +365,6 @@ function Composer({
           />
           <IconButton
             label={speech.listening ? "Stop listening" : "Start speech input"}
-            aria-pressed={speech.listening}
             onClick={() => { setMention(null); speech.toggle(); }}
             disabled={sending}
             className={speech.listening ? "bg-accent-soft text-link" : undefined}
